@@ -459,7 +459,7 @@ async def handle_chat_command(args: Message = CommandArg(), event: Event = None)
     if not command_args:
         await chat_command.finish(
             """请输入有效的命令：
-            'chat model <模型名字>' 切换模型 
+            'chat model <模型名字>' 切换模型
             'chat clear' 清理会话
             'chat group <true/false>' 切换群聊会话隔离
             'chat down' 关闭对话功能
@@ -470,7 +470,7 @@ async def handle_chat_command(args: Message = CommandArg(), event: Event = None)
     if not command_args:
         await chat_command.finish(
             """请输入有效的命令：
-            'chat model <模型名字>' 切换模型 
+            'chat model <模型名字>' 切换模型
             'chat clear' 清理会话
             'chat group <true/false>' 切换群聊会话隔离
             'chat down' 关闭对话功能
@@ -633,3 +633,26 @@ async def handle_chat_command(args: Message = CommandArg(), event: Event = None)
         await chat_command.finish(
             "无效的命令，请使用 'chat model <模型名字>'、'chat clear' 或 'chat group <true/false>'。"
         )
+
+
+about_command = on_command("about", priority=5, block=True)
+
+
+@about_command.handle()
+async def handle_about_command():
+    """处理 /about 命令"""
+    current_model = "未初始化"
+    if llm:
+        # Try to get model name from different LC model classes
+        current_model = getattr(llm, "model_name", getattr(llm, "model", "未知"))
+
+    msg = (
+        f"🤖 {__plugin_meta__.name}\n"
+        f"版本: v0.1.1\n"
+        f"作者: pe200012 (姆Q)\n"
+        f"说明: {__plugin_meta__.description}\n"
+        f"当前模型: {current_model}\n"
+        f"架构: LangGraph Agentic System\n"
+        f"驱动: NoneBot2"
+    )
+    await about_command.finish(msg)

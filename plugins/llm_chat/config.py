@@ -12,6 +12,8 @@ class LLMConfig(BaseModel):
     api_key: Optional[str]
     google_api_key: str = ""
     groq_api_key: str = ""
+    xai_api_key: str = ""
+    openrouter_api_key: str = ""
     base_url: str = "https://api.openai.com/v1"
     temperature: float = 0.7
     top_p: float = 1.0
@@ -96,6 +98,8 @@ class Config(BaseModel):
                 google_api_key=toml_config["llm"].get("google_api_key", ""),
                 top_p=toml_config["llm"].get("top_p", 1.0),
                 groq_api_key=toml_config["llm"].get("groq_api_key", ""),
+                xai_api_key=toml_config["llm"].get("xai_api_key", ""),
+                openrouter_api_key=toml_config["llm"].get("openrouter_api_key", ""),
                 qa_pairs=toml_config["llm"].get("qa_pairs", []),
             )
 

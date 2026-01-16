@@ -4,8 +4,8 @@ import os
 import requests
 import re
 import glob
+import json
 from bs4 import BeautifulSoup
-from langchain_community.tools.tavily_search import TavilySearchResults
 
 from .skills import SKILL_DESCRIPTIONS, get_content_for_skills
 
@@ -90,23 +90,50 @@ def todo_read() -> str:
 @tool(parse_docstring=True)
 def web_search(query: str) -> str:
     """
-    Search the web for information.
+    Search the web using Exa AI.
 
     Args:
         query: The search query.
 
     Returns:
-        Search results with titles and URLs.
+        Search results.
     """
+    url = "https://mcp.exa.ai/mcp"
+    payload = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+            "name": "web_search_exa",
+            "arguments": {"query": query, "numResults": 5, "type": "auto"},
+        },
+    }
+    headers = {
+        "accept": "application/json, text/event-stream",
+        "content-type": "application/json",
+    }
+
     try:
-        tavily = TavilySearchResults(max_results=5)
-        results = tavily.invoke(query)
+        response = requests.post(url, json=payload, headers=headers, timeout=15)
+        response.raise_for_status()
+
         output = []
-        for res in results:
-            content = res.get("content", "No content")
-            url = res.get("url", "No URL")
-            output.append(f"### {url}\n{content}\n")
-        return "\n".join(output)
+        for line in response.text.splitlines():
+            if line.startswith("data: "):
+                try:
+                    data = json.loads(line[6:])
+                    if "result" in data and "content" in data["result"]:
+                        for item in data["result"]["content"]:
+                            if item["type"] == "text":
+                                output.append(item["text"])
+                except json.JSONDecodeError:
+                    continue
+
+        if not output:
+            return "No search results found."
+
+        return "\n\n---\n\n".join(output)
+
     except Exception as e:
         return f"Search error: {str(e)}"
 

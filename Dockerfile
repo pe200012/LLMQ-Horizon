@@ -1,8 +1,9 @@
 FROM ghcr.io/astral-sh/uv:bookworm-slim
 
-# 安装 tini 作为初始化系统
 RUN apt-get update \
-    && apt-get install -y tini ca-certificates \
+    && apt-get install -y tini ca-certificates curl \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 LABEL maintainer="mgrsc <mail@occult.ac.cn>"

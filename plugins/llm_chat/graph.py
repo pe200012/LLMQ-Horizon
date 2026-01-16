@@ -12,6 +12,7 @@ from langchain_core.messages import (
 )
 from langchain_openai import ChatOpenAI
 from langchain_groq import ChatGroq
+from langchain_xai import ChatXAI
 from langchain_core.language_models import LanguageModelInput
 from langchain_google_genai import (
     ChatGoogleGenerativeAI,
@@ -32,6 +33,16 @@ from .callbacks import ToolLoggingCallback
 
 
 groq_models = {"llama3-groq-70b-8192-tool-use-preview", "llama-3.3-70b-versatile"}
+
+xai_models = {
+    "grok-3",
+    "grok-3-fast",
+    "grok-3-mini",
+    "grok-3-mini-fast",
+    "grok-4",
+    "grok-4-fast",
+    "grok-code-fast-1",
+}
 
 think_oai_models = {
     "o1",
@@ -107,6 +118,25 @@ async def get_llm(model=None):
                 temperature=plugin_config.llm.temperature,
                 max_tokens=plugin_config.llm.max_tokens,
                 api_key=plugin_config.llm.groq_api_key,
+                callbacks=callbacks,
+            )
+        elif model in xai_models or model.startswith("grok"):
+            print("使用xAI Grok")
+            return ChatXAI(
+                model=model,
+                temperature=plugin_config.llm.temperature,
+                max_tokens=plugin_config.llm.max_tokens,
+                xai_api_key=plugin_config.llm.xai_api_key,
+                callbacks=callbacks,
+            )
+        elif "/" in model:
+            print(f"使用OpenRouter: {model}")
+            return ChatOpenAI(
+                model=model,
+                temperature=plugin_config.llm.temperature,
+                max_tokens=plugin_config.llm.max_tokens,
+                api_key=plugin_config.llm.openrouter_api_key,
+                base_url="https://openrouter.ai/api/v1",
                 callbacks=callbacks,
             )
         elif "gemini" in model:
