@@ -8,7 +8,7 @@ from nonebot.adapters.onebot.v11 import (
 from nonebot.adapters.onebot.v11.exception import ActionFailed
 from datetime import datetime, timedelta, timezone
 from nonebot.exception import MatcherException
-from typing import List, Dict
+from typing import List, Dict, Union, Optional
 from nonebot import get_bot
 from .config import Config
 from random import choice
@@ -26,24 +26,32 @@ async def get_user_name(event: MessageEvent) -> str:
     user_name = event.sender.nickname if event.sender.nickname else event.sender.card
     if not user_name:
         try:
+            bot = get_bot()
             if isinstance(event, GroupMessageEvent):
-                user_info = await event.bot.get_group_member_info(
+                user_info = await bot.get_group_member_info(
                     group_id=event.group_id, user_id=event.user_id
                 )
-                user_name = user_info.get("nickname") or user_info.get("card") or str(event.user_id)
+                user_name = (
+                    user_info.get("nickname")
+                    or user_info.get("card")
+                    or str(event.user_id)
+                )
             else:
-                user_info = await event.bot.get_stranger_info(user_id=event.user_id)
+                user_info = await bot.get_stranger_info(user_id=event.user_id)
                 user_name = user_info.get("nickname") or str(event.user_id)
         except Exception as e:
             print(f"获取用户信息失败: {e}")
             user_name = str(event.user_id)
     return user_name
 
-async def extract_media_urls(message: Message, reply_message: Message = None) -> Dict[str, Dict[str, List[str]]]:
+
+async def extract_media_urls(
+    message: Message, reply_message: Message = None
+) -> Dict[str, Dict[str, List[str]]]:
     """提取消息和引用中的媒体URL"""
     media_urls = {
         "main": {"image": [], "video": [], "audio": []},
-        "reply": {"image": [], "video": [], "audio": []}
+        "reply": {"image": [], "video": [], "audio": []},
     }
 
     def _extract_from_segments(segments: Message, media_type: str):
@@ -60,19 +68,29 @@ async def extract_media_urls(message: Message, reply_message: Message = None) ->
 
     # 提取引用消息中的媒体URL
     if reply_message:
-        media_urls["reply"]["image"].extend(_extract_from_segments(reply_message, "image"))
-        media_urls["reply"]["video"].extend(_extract_from_segments(reply_message, "video"))
-        media_urls["reply"]["audio"].extend(_extract_from_segments(reply_message, "audio"))
+        media_urls["reply"]["image"].extend(
+            _extract_from_segments(reply_message, "image")
+        )
+        media_urls["reply"]["video"].extend(
+            _extract_from_segments(reply_message, "video")
+        )
+        media_urls["reply"]["audio"].extend(
+            _extract_from_segments(reply_message, "audio")
+        )
 
     return media_urls
+
 
 def get_utc8_time():
     """获取当前时间的UTC+8时间"""
     utc_now = datetime.now(timezone.utc)
     utc8_time = utc_now + timedelta(hours=8)
-    weekdays = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
+    weekdays = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
     weekday = weekdays[utc8_time.weekday()]
-    return f"{utc8_time.strftime('%Y-%m-%d')} ({weekday}) {utc8_time.strftime('%H:%M:%S')}"
+    return (
+        f"{utc8_time.strftime('%Y-%m-%d')} ({weekday}) {utc8_time.strftime('%H:%M:%S')}"
+    )
+
 
 async def remove_trigger_words(message: Message, event: MessageEvent) -> str:
     """移除命令前缀,并将@CQ码转换为@真实昵称格式"""
@@ -86,11 +104,14 @@ async def remove_trigger_words(message: Message, event: MessageEvent) -> str:
                 if isinstance(event, GroupMessageEvent):
                     # 获取被@用户的群成员信息
                     user_info = await bot.get_group_member_info(
-                        group_id=event.group_id,
-                        user_id=int(seg.data["qq"])
+                        group_id=event.group_id, user_id=int(seg.data["qq"])
                     )
                     # 优先使用群名片,其次是昵称,最后是QQ号
-                    at_name = user_info.get("card") or user_info.get("nickname") or str(seg.data["qq"])
+                    at_name = (
+                        user_info.get("card")
+                        or user_info.get("nickname")
+                        or str(seg.data["qq"])
+                    )
                 else:
                     # 私聊场景下获取陌生人信息
                     user_info = await bot.get_stranger_info(user_id=int(seg.data["qq"]))
@@ -99,16 +120,16 @@ async def remove_trigger_words(message: Message, event: MessageEvent) -> str:
                 print(f"获取被@用户信息失败: {e}")
                 at_name = str(seg.data["qq"])
             text += f"@{at_name}(user_id: {seg.data['qq']})"
-            
+
     text = text.strip()
-    
+
     # 移除命令前缀
-    if hasattr(plugin_config.plugin, 'trigger_words'):
+    if hasattr(plugin_config.plugin, "trigger_words"):
         for cmd in plugin_config.plugin.trigger_words:
             if text.startswith(cmd):
-                text = text[len(cmd):].strip()
+                text = text[len(cmd) :].strip()
                 break
-    
+
     return text
 
 
@@ -121,13 +142,12 @@ def calculate_typing_delay(text: str) -> float:
     return min(delay, plugin_config.plugin.chunk.max_time)
 
 
-
 async def send_in_chunks(response: str, chat_handler) -> bool:
     """
     分段发送逻辑, 返回True表示已完成发送, 否则False
     """
     for sep in plugin_config.plugin.chunk.words:
-        if (sep in response):
+        if sep in response:
             chunks = response.split(sep)
             for i, chunk in enumerate(chunks):
                 chunk = chunk.strip()
@@ -143,7 +163,6 @@ async def send_in_chunks(response: str, chat_handler) -> bool:
                     await asyncio.sleep(calculate_typing_delay(chunk))
             return True
     return False
-
 
 
 def remove_cq_codes(message: Message) -> str:
@@ -163,7 +182,7 @@ async def build_message_content(
     message_id: str,
 ) -> str:
     """构建最终发送给大模型的消息内容"""
-    
+
     # 获取纯文本消息
     full_content = await remove_trigger_words(message, event)
 
@@ -192,11 +211,11 @@ async def build_message_content(
 
 def filter_sensitive_words(text: str, word_list: List[str]) -> bool:
     """检查文本是否包含敏感词
-    
+
     Args:
         text (str): 要检查的文本
         word_list (List[str]): 敏感词列表
-        
+
     Returns:
         bool: True 如果包含敏感词，False 如果不包含
     """
@@ -204,6 +223,3 @@ def filter_sensitive_words(text: str, word_list: List[str]) -> bool:
         return False
     text = text.lower()
     return any(word.lower() in text for word in word_list)
-
-
-

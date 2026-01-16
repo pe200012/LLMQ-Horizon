@@ -3,8 +3,10 @@ from pydantic import BaseModel, Field
 from pathlib import Path
 import tomli
 
+
 class LLMConfig(BaseModel):
     """LLM 配置"""
+
     model: str
     force_openai: bool = False
     api_key: Optional[str]
@@ -18,15 +20,19 @@ class LLMConfig(BaseModel):
     max_context_messages: int = 10
     qa_pairs: List[Tuple[str, str]] = []
 
+
 class ChunkConfig(BaseModel):
     """分段发送配置"""
+
     enable: bool = False
     words: List[str] = ["||"]
     max_time: float = 5.0
     char_per_s: int = 5
 
+
 class PluginConfig(BaseModel):
     """插件配置"""
+
     trigger_words: List[str] = []
     trigger_mode: List[str] = ["keyword", "at"]
     group_chat_isolation: bool = True
@@ -38,9 +44,12 @@ class PluginConfig(BaseModel):
     superusers: str = ""
     media_include_text: bool = True
     debug: bool = False
+    log_tools: bool = True  # Tool logging switch
+
 
 class ResponseConfig(BaseModel):
     """回复消息配置"""
+
     empty_message_replies: List[str] = ["你好", "在呢", "我在听"]
     token_limit_error: str = "太长了发不出来，换一个吧"
     general_error: str = "卧槽，报错了，尝试自行修复中，聊聊别的吧！"
@@ -48,10 +57,13 @@ class ResponseConfig(BaseModel):
     session_busy_message: str = "正在处理其他会话，稍后再试"
     assistant_empty_reply: str = "API空回复"
 
+
 class SensitiveWordsConfig(BaseModel):
     """敏感词配置"""
+
     input_words: List[str] = []
     output_words: List[str] = []
+
 
 class Config(BaseModel):
     llm: LLMConfig
@@ -90,41 +102,66 @@ class Config(BaseModel):
             plugin_config = PluginConfig(
                 trigger_words=toml_config["plugin_settings"]["trigger_words"],
                 trigger_mode=toml_config["plugin_settings"]["trigger_mode"],
-                group_chat_isolation=toml_config["plugin_settings"]["group_chat_isolation"],
+                group_chat_isolation=toml_config["plugin_settings"][
+                    "group_chat_isolation"
+                ],
                 enable_private=toml_config["plugin_settings"]["enable_private"],
                 enable_group=toml_config["plugin_settings"]["enable_group"],
-                enable_username=toml_config["plugin_settings"].get("enable_username", False),
+                enable_username=toml_config["plugin_settings"].get(
+                    "enable_username", False
+                ),
                 command_start=toml_config["plugin_settings"].get("command_start", "?"),
                 superusers=toml_config["plugin_settings"].get("superusers", ""),
-                media_include_text=toml_config["plugin_settings"].get("media_include_text", True),
+                media_include_text=toml_config["plugin_settings"].get(
+                    "media_include_text", True
+                ),
                 debug=toml_config["plugin_settings"].get("debug", False),
+                log_tools=toml_config["plugin_settings"].get(
+                    "log_tools", True
+                ),  # Load log_tools
                 chunk=ChunkConfig(
                     enable=toml_config.get("chunk", {}).get("enable", False),
                     words=toml_config.get("chunk", {}).get("words", ["||"]),
                     max_time=toml_config.get("chunk", {}).get("max_time", 5.0),
-                    char_per_s=toml_config.get("chunk", {}).get("char_per_s", 5)
-                )
+                    char_per_s=toml_config.get("chunk", {}).get("char_per_s", 5),
+                ),
             )
 
             responses_config = ResponseConfig(
-                empty_message_replies=toml_config["responses"].get("empty_message_replies", ResponseConfig().empty_message_replies),
-                token_limit_error=toml_config["responses"].get("token_limit_error", ResponseConfig().token_limit_error),
-                general_error=toml_config["responses"].get("general_error", ResponseConfig().general_error),
-                disabled_message=toml_config["responses"].get("disabled_message", "Bot已禁用"),
-                assistant_empty_reply=toml_config["responses"].get("assistant_empty_reply", "API空回复"),
-                session_busy_message=toml_config["responses"].get("session_busy_message", "正在处理其他会话，稍后再试")
+                empty_message_replies=toml_config["responses"].get(
+                    "empty_message_replies", ResponseConfig().empty_message_replies
+                ),
+                token_limit_error=toml_config["responses"].get(
+                    "token_limit_error", ResponseConfig().token_limit_error
+                ),
+                general_error=toml_config["responses"].get(
+                    "general_error", ResponseConfig().general_error
+                ),
+                disabled_message=toml_config["responses"].get(
+                    "disabled_message", "Bot已禁用"
+                ),
+                assistant_empty_reply=toml_config["responses"].get(
+                    "assistant_empty_reply", "API空回复"
+                ),
+                session_busy_message=toml_config["responses"].get(
+                    "session_busy_message", "正在处理其他会话，稍后再试"
+                ),
             )
 
             sensitive_words_config = SensitiveWordsConfig(
-                input_words=toml_config.get("sensitive_words", {}).get("input_words", []),
-                output_words=toml_config.get("sensitive_words", {}).get("output_words", [])
+                input_words=toml_config.get("sensitive_words", {}).get(
+                    "input_words", []
+                ),
+                output_words=toml_config.get("sensitive_words", {}).get(
+                    "output_words", []
+                ),
             )
 
             return cls(
                 llm=llm_config,
                 plugin=plugin_config,
                 responses=responses_config,
-                sensitive_words=sensitive_words_config
+                sensitive_words=sensitive_words_config,
             )
         except tomli.TOMLDecodeError as e:
             raise RuntimeError(f"TOML parsing error: {e}")
@@ -132,7 +169,8 @@ class Config(BaseModel):
             raise RuntimeError(f"Missing key in config.toml: {e}")
         except Exception as e:
             raise RuntimeError(f"An unexpected error occurred: {e}")
-        
+
+
 try:
     plugin_config = Config.load_config()
 except RuntimeError as e:

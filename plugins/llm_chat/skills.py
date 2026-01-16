@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 import importlib
 import sys
 import re
@@ -11,9 +11,12 @@ SKILL_KEYWORDS: Dict[str, List[str]] = {}  # name -> keywords
 SKILL_CONTENT: Dict[str, str] = {}  # name -> markdown_body
 
 
-def _parse_frontmatter(content: str) -> Tuple[Dict, str]:
-    """Simple YAML frontmatter parser."""
-    meta = {}
+import yaml
+
+
+def _parse_frontmatter(content: str) -> Tuple[Dict[str, Any], str]:
+    """YAML frontmatter parser using PyYAML."""
+    meta: Dict[str, Any] = {}
     body = content
 
     # Check for --- block at start
@@ -21,24 +24,12 @@ def _parse_frontmatter(content: str) -> Tuple[Dict, str]:
     if match:
         yaml_text = match.group(1)
         body = match.group(2)
-
-        # Simple line-based YAML parser (key: value)
-        for line in yaml_text.split("\n"):
-            line = line.strip()
-            if ":" in line:
-                key, val = line.split(":", 1)
-                key = key.strip()
-                val = val.strip()
-
-                # Handle simple list (keywords)
-                if not val and key == "keywords":
-                    meta[key] = []
-                    continue
-                if key.startswith("-") and "keywords" in meta:
-                    meta["keywords"].append(line.lstrip("- ").strip())
-                    continue
-
-                meta[key] = val
+        try:
+            parsed = yaml.safe_load(yaml_text)
+            if isinstance(parsed, dict):
+                meta = parsed
+        except yaml.YAMLError as e:
+            print(f"Error parsing YAML frontmatter: {e}")
 
     return meta, body
 
@@ -78,13 +69,18 @@ def _discover_skills():
             SKILL_KEYWORDS[skill_name] = meta.get("keywords", [])
             SKILL_CONTENT[skill_name] = body
 
-            # Look for adjacent tools.py
+            # Look for adjacent tools.py (Optional)
             tools_file = skill_path / "tools.py"
             if tools_file.exists():
                 module_name = f"skills.{skill_path.name}.tools"
                 if skill_name not in SKILL_REGISTRY:
                     SKILL_REGISTRY[skill_name] = []
                 SKILL_REGISTRY[skill_name].append(module_name)
+            else:
+                # Skill without tools (Knowledge Only)
+                # Ensure it exists in registry so it can be activated
+                if skill_name not in SKILL_REGISTRY:
+                    SKILL_REGISTRY[skill_name] = []
 
         except Exception as e:
             print(f"Error loading skill {skill_path.name}: {e}")
@@ -96,6 +92,16 @@ def _discover_skills():
 
 # Initialize Registry at startup
 _discover_skills()
+
+# Log discovered skills
+if SKILL_KEYWORDS:
+    print(
+        f"[Skills] Discovered {len(SKILL_KEYWORDS)} skills: {list(SKILL_KEYWORDS.keys())}"
+    )
+    for name, kws in SKILL_KEYWORDS.items():
+        print(f"  - {name}: keywords={kws[:5]}{'...' if len(kws) > 5 else ''}")
+else:
+    print("[Skills] No skills discovered. Check skills/ directory.")
 
 
 def get_tools_for_skills(active_skills: List[str]) -> List[str]:
