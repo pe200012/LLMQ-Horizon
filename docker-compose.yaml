@@ -17,6 +17,9 @@ services:
   llmq:
     image: bitfennec/llmq-horizon:latest
     container_name: llmq-horizon
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: always
     ports:
       - "40000:5000"

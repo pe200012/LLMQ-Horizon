@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import tomli
 
+
 def _get_builtin_tools(config: dict) -> Dict[str, BaseTool]:
     """根据配置返回内置工具的初始化方法字典。"""
     return {
@@ -16,7 +17,10 @@ def _get_builtin_tools(config: dict) -> Dict[str, BaseTool]:
         )
     }
 
-def load_tools(enabled_tools: Optional[List[str]] = None, tool_paths: Optional[List[str]] = None) -> List[BaseTool]:
+
+def load_tools(
+    enabled_tools: Optional[List[str]] = None, tool_paths: Optional[List[str]] = None
+) -> List[BaseTool]:
     """加载启用的工具"""
     tools_list = []
 
@@ -31,7 +35,7 @@ def load_tools(enabled_tools: Optional[List[str]] = None, tool_paths: Optional[L
             raise FileNotFoundError(f"Tools config file not found at {config_path}")
 
         builtin_tool_factories = _get_builtin_tools(config)
-        
+
         tavily_config = config.get("tavily")
         if tavily_config and "api_key" in tavily_config:
             os.environ["TAVILY_API_KEY"] = tavily_config["api_key"]
@@ -56,8 +60,16 @@ def load_tools(enabled_tools: Optional[List[str]] = None, tool_paths: Optional[L
 
     for name in enabled_tools:
         try:
-            tool_module = importlib.import_module(f"tools.{name.replace('-', '_')}")
-            tools_list.extend(tool_module.tools if hasattr(tool_module, 'tools') else [])
+            # Try importing as 'tools.xxx' (Legacy)
+            try:
+                tool_module = importlib.import_module(f"tools.{name.replace('-', '_')}")
+            except ModuleNotFoundError:
+                # Try importing as full module path (New Skill System)
+                tool_module = importlib.import_module(name)
+
+            tools_list.extend(
+                tool_module.tools if hasattr(tool_module, "tools") else []
+            )
         except (ModuleNotFoundError, ImportError) as e:
             print(f"Error loading tool {name}: {str(e)}")
 
